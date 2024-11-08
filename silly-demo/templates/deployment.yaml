@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: silly-demo
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: silly-demo
+  template:
+    metadata:
+      labels:
+        app: silly-demo
+    spec:
+      containers:
+        - name: silly-demo
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_ENDPOINT
+              value: "postgresql"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "{{ .Values.postgresql.postgresqlUsername }}"
+            - name: DB_PASS
+              value: "{{ .Values.postgresql.postgresqlPassword }}"
+            - name: DB_NAME
+              value: "{{ .Values.postgresql.postgresqlDatabase }}"
+        - name: nginx
+          image: "{{ .Values.nginxImage.repository }}:{{ .Values.nginxImage.tag }}"
+          imagePullPolicy: {{ .Values.nginxImage.pullPolicy }}
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: nginx-config
