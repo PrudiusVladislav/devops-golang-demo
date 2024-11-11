@@ -1,5 +1,8 @@
 provider "aws" {
   region = "eu-north-1"
+  #specify the access key and secret key  
+  access_key = ""
+  secret_key = ""
 }
 
 resource "aws_vpc" "main" {
@@ -43,27 +46,6 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
-resource "aws_instance" "app" {
-  ami           = "ami-097c5c21a18dc59ea"
-  instance_type = "t3.micro"
-  subnet_id     = element(aws_subnet.public.*.id, 0)
-  security_groups = [aws_security_group.ec2_sg.name]
-
-  user_data = file("${path.module}/setup.sh")
-}
-
-resource "aws_db_instance" "postgres" {
-  allocated_storage    = 20
-  engine               = "postgres"
-  instance_class       = "db.t4g.micro"
-  name                 = "mydb"
-  username             = "admin"
-  password             = "password"
-  parameter_group_name = "default.postgres12"
-  skip_final_snapshot  = true
-  vpc_security_group_ids = [aws_security_group.rds_sg.id]
-}
-
 resource "aws_security_group" "rds_sg" {
   vpc_id = aws_vpc.main.id
 
@@ -80,6 +62,38 @@ resource "aws_security_group" "rds_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+}
+
+resource "aws_db_subnet_group" "main" {
+  name       = "main-subnet-group"
+  subnet_ids = aws_subnet.public[*].id
+
+  tags = {
+    Name = "main-subnet-group"
+  }
+}
+
+resource "aws_instance" "app" {
+  ami           = "ami-04b54ebf295fe01d7"
+  instance_type = "t3.micro"
+  subnet_id     = element(aws_subnet.public.*.id, 0)
+  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
+
+  user_data = templatefile("${path.module}/setup.sh", {
+    db_endpoint = aws_db_instance.postgres.endpoint
+  })
+}
+
+resource "aws_db_instance" "postgres" {
+  allocated_storage    = 20
+  engine               = "postgres"
+  instance_class       = "db.t4g.micro"
+  username             = "mydbuser"
+  password             = "password"
+  parameter_group_name = "default.postgres16"
+  skip_final_snapshot  = true
+  vpc_security_group_ids = [aws_security_group.rds_sg.id]
+  db_subnet_group_name = aws_db_subnet_group.main.name
 }
 
 data "aws_availability_zones" "available" {}
