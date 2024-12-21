@@ -1,0 +1,7 @@
+/golang-demo
+
+.env
+
+terraform/.terraform/
+terraform-hw/.terraform/
+
